@@ -36,6 +36,17 @@ def _output_path(file: str | Path) -> Path:
     return path
 
 
+def _positive_float(name: str, value: float) -> float:
+    """Return ``value`` as a finite positive float, or raise ValueError."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be a finite positive number") from exc
+    if not np.isfinite(number) or number <= 0.0:
+        raise ValueError(f"{name} must be a finite positive number")
+    return number
+
+
 class ChillPlusReporter:
     """OpenMM reporter that records CHILL+ structure populations.
 
@@ -69,16 +80,19 @@ class ChillPlusReporter:
         Distance cutoff used to connect atoms into nuclei, in angstrom.
         Default is 3.2.
     water_name : str, optional
-        Residue name of water molecules in the topology.  Default is
-        ``"HOH"``.
+        Residue name of water molecules in the topology.  Oxygen atoms are
+        matched by element, or by atom name ``"O"`` when element information
+        is absent.  Default is ``"HOH"``.
     time_unit : openmm.unit.Unit, optional
         Unit used for the time column.  Default is ``nanosecond``.
 
     Notes
     -----
-    The reporter requests positions and parameters from OpenMM.  Call
-    :meth:`close` when the simulation is finished (or use the reporter as a
-    context manager) to flush and close the output files.
+    The simulation must use periodic boundary conditions.  The reporter
+    requests wrapped positions from OpenMM and raises :class:`ValueError` for
+    non-periodic systems, because OpenMM would otherwise supply a default 2 nm
+    box.  Call :meth:`close` when the simulation is finished (or use the
+    reporter as a context manager) to flush and close the output files.
     """
 
     def __init__(
@@ -94,18 +108,31 @@ class ChillPlusReporter:
         water_name: str = "HOH",
         time_unit: Unit = nanosecond,
     ) -> None:
-        if not isinstance(interval, (int, np.integer)) or interval <= 0:
+        if (
+            isinstance(interval, bool)
+            or not isinstance(interval, (int, np.integer))
+            or interval <= 0
+        ):
             raise ValueError("interval must be a positive integer")
-        if not isinstance(l, (int, np.integer)) or l < 0:
+        if isinstance(l, bool) or not isinstance(l, (int, np.integer)) or l < 0:
             raise ValueError("l must be a non-negative integer")
-        if cut_off <= 0:
-            raise ValueError("cut_off must be positive")
-        if cluster_cut_off <= 0:
-            raise ValueError("cluster_cut_off must be positive")
+        cut_off = _positive_float("cut_off", cut_off)
+        cluster_cut_off = _positive_float("cluster_cut_off", cluster_cut_off)
+        if not hasattr(time_unit, "get_symbol"):
+            raise TypeError(
+                "time_unit must be an OpenMM unit, e.g. openmm.unit.nanosecond"
+            )
+        time_symbol = time_unit.get_symbol()
 
+        if isinstance(cluster, str):
+            raise ValueError(
+                "cluster must be a sequence of structure labels, not a string"
+            )
         cluster_names = list(ICE_STRUCTURES) if cluster is None else list(cluster)
         if not cluster_names:
             raise ValueError("cluster must contain at least one structure label")
+        if not all(isinstance(name, str) for name in cluster_names):
+            raise ValueError("cluster labels must be strings")
         if len(set(cluster_names)) != len(cluster_names):
             raise ValueError("cluster contains duplicate labels")
         unknown = sorted(set(cluster_names) - set(STRUCTURE_TYPES))
@@ -116,11 +143,19 @@ class ChillPlusReporter:
             )
 
         if group is not None:
-            group_array = np.asarray(group, dtype=np.int64)
+            group_array = np.asarray(group)
             if group_array.ndim != 1:
                 raise ValueError("group must be a one-dimensional sequence")
             if group_array.size == 0:
                 raise ValueError("group must contain at least one atom index")
+            if not np.issubdtype(group_array.dtype, np.integer):
+                if not np.issubdtype(group_array.dtype, np.floating):
+                    raise ValueError("group must contain integer atom indices")
+                if not np.all(np.isfinite(group_array)) or not np.all(
+                    group_array == np.floor(group_array)
+                ):
+                    raise ValueError("group must contain integer atom indices")
+            group_array = group_array.astype(np.int64, copy=False)
             if np.any(group_array < 0):
                 raise ValueError("group contains a negative atom index")
             if np.unique(group_array).size != group_array.size:
@@ -130,10 +165,10 @@ class ChillPlusReporter:
             self.ids = None
 
         self.interval = int(interval)
-        self.cut_off = float(cut_off)
+        self.cut_off = cut_off
         self.l = int(l)
         self.cluster = tuple(cluster_names)
-        self.cluster_cut_off = float(cluster_cut_off)
+        self.cluster_cut_off = cluster_cut_off
         self.water_name = str(water_name)
         self.time_unit = time_unit
         self.need_index = bool(need_index)
@@ -148,19 +183,26 @@ class ChillPlusReporter:
         )
 
         self.structures = self._column_names()
-        self.file: TextIO = self.file_path.open("w", encoding="utf-8")
-        self.index_file: TextIO | None = (
-            self.index_path.open("w", encoding="utf-8")
-            if self.index_path is not None
-            else None
-        )
         self.max_cluster: int | None = None
         self.last_counts: dict[str, int | str] = {}
+        self._periodic_checked = False
+        self._closed = True
+
+        self.file: TextIO = self.file_path.open("w", encoding="utf-8")
+        try:
+            self.index_file: TextIO | None = (
+                self.index_path.open("w", encoding="utf-8")
+                if self.index_path is not None
+                else None
+            )
+        except Exception:
+            self.file.close()
+            raise
         self._closed = False
 
         header = [
             "#Step",
-            f"Time({time_unit.get_symbol()})",
+            f"Time({time_symbol})",
             "Temperature(K)",
             *self.structures,
         ]
@@ -184,7 +226,8 @@ class ChillPlusReporter:
         indices = [
             atom.index
             for atom in topology.atoms()
-            if atom.residue.name == self.water_name and atom.element == oxygen
+            if atom.residue.name == self.water_name
+            and (atom.element == oxygen or (atom.element is None and atom.name == "O"))
         ]
         if not indices:
             raise ValueError(
@@ -240,7 +283,7 @@ class ChillPlusReporter:
             return float("nan")
 
     def describeNextReport(self, simulation):
-        """Tell OpenMM which data are needed at the next report."""
+        """Tell OpenMM that the next report needs wrapped positions."""
         steps = self.interval - simulation.currentStep % self.interval
         return steps, True, False, False, False, True
 
@@ -255,6 +298,15 @@ class ChillPlusReporter:
                 "group contains an atom index outside the topology: "
                 f"maximum index is {num_atoms - 1}"
             )
+
+        if not self._periodic_checked:
+            if not simulation.system.usesPeriodicBoundaryConditions():
+                raise ValueError(
+                    "ChillPlusReporter requires a system with periodic boundary "
+                    "conditions; use chillplus.classify with an explicit box for "
+                    "non-periodic systems"
+                )
+            self._periodic_checked = True
 
         positions = state.getPositions(asNumpy=True).value_in_unit(angstrom)
         positions = positions[self.ids]
@@ -315,9 +367,12 @@ class ChillPlusReporter:
         """Flush and close the output files.  Safe to call more than once."""
         if getattr(self, "_closed", True):
             return
-        self.file.close()
-        if self.index_file is not None:
-            self.index_file.close()
+        file = getattr(self, "file", None)
+        if file is not None and not file.closed:
+            file.close()
+        index_file = getattr(self, "index_file", None)
+        if index_file is not None and not index_file.closed:
+            index_file.close()
         self._closed = True
 
     def __enter__(self) -> ChillPlusReporter:
@@ -327,8 +382,7 @@ class ChillPlusReporter:
         self.close()
 
     def __del__(self) -> None:
-        file = getattr(self, "file", None)
-        if file is not None and not file.closed:
+        if not getattr(self, "_closed", True):
             self.close()
 
 

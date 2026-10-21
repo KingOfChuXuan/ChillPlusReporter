@@ -16,30 +16,44 @@ BOX_HEADER = (
 )
 
 
-def _build_simulation(positions, box_size, residue_name="HOH"):
+def _build_simulation(
+    positions,
+    box_size=None,
+    residue_name="HOH",
+    element=app.element.oxygen,
+    periodic=True,
+):
     """Build a minimal O-only OpenMM system for reporter tests."""
     topology = app.Topology()
     chain = topology.addChain()
     for _ in range(len(positions)):
         residue = topology.addResidue(residue_name, chain)
-        topology.addAtom("O", app.element.oxygen, residue)
+        topology.addAtom("O", element, residue)
 
-    lengths = np.asarray(box_size, dtype=float) / 10.0  # angstrom -> nm
-    box_vectors = (
-        mm.Vec3(lengths[0], 0.0, 0.0),
-        mm.Vec3(0.0, lengths[1], 0.0),
-        mm.Vec3(0.0, 0.0, lengths[2]),
-    )
-    topology.setPeriodicBoxVectors(box_vectors)
+    box_vectors = None
+    if periodic:
+        if box_size is None:
+            raise ValueError("box_size is required for a periodic test system")
+        lengths = np.asarray(box_size, dtype=float) / 10.0  # angstrom -> nm
+        box_vectors = (
+            mm.Vec3(lengths[0], 0.0, 0.0),
+            mm.Vec3(0.0, lengths[1], 0.0),
+            mm.Vec3(0.0, 0.0, lengths[2]),
+        )
+        topology.setPeriodicBoxVectors(box_vectors)
 
     system = mm.System()
-    system.setDefaultPeriodicBoxVectors(*box_vectors)
+    if box_vectors is not None:
+        system.setDefaultPeriodicBoxVectors(*box_vectors)
     for _ in positions:
         system.addParticle(16.0)
 
     force = mm.NonbondedForce()
-    force.setNonbondedMethod(mm.NonbondedForce.CutoffPeriodic)
-    force.setCutoffDistance(0.5 * unit.nanometer)
+    if periodic:
+        force.setNonbondedMethod(mm.NonbondedForce.CutoffPeriodic)
+        force.setCutoffDistance(0.5 * unit.nanometer)
+    else:
+        force.setNonbondedMethod(mm.NonbondedForce.NoCutoff)
     for _ in positions:
         force.addParticle(0.0, 0.3, 0.1)
     system.addForce(force)
@@ -168,6 +182,82 @@ def test_reporter_validates_arguments(tmp_path):
         ChillPlusReporter(tmp_path / "x.dat", 1, group=[])
     with pytest.raises(ValueError, match="group"):
         ChillPlusReporter(tmp_path / "x.dat", 1, group=[0, 0])
+
+
+def test_reporter_rejects_nonperiodic_system(tmp_path):
+    positions = np.array(
+        [[0.0, 0.0, 0.0], [2.75, 0.0, 0.0], [0.0, 2.75, 0.0], [0.0, 0.0, 2.75]]
+    )
+    simulation = _build_simulation(positions, periodic=False)
+    output = tmp_path / "nonperiodic.dat"
+
+    with ChillPlusReporter(output, interval=1) as reporter:
+        simulation.reporters.append(reporter)
+        with pytest.raises(ValueError, match="periodic boundary"):
+            simulation.step(1)
+
+
+def test_reporter_selects_oxygen_without_element(tmp_path, cubic_ice):
+    positions, box_size = cubic_ice
+    simulation = _build_simulation(positions, box_size, element=None)
+    output = tmp_path / "noelement.dat"
+
+    with ChillPlusReporter(output, interval=1) as reporter:
+        simulation.reporters.append(reporter)
+        simulation.step(1)
+
+    assert reporter.last_counts["Ic"] == 64
+
+
+def test_reporter_appends_dat_suffix(tmp_path, cubic_ice):
+    positions, box_size = cubic_ice
+    simulation = _build_simulation(positions, box_size)
+    output = tmp_path / "structures"
+
+    with ChillPlusReporter(output, interval=1) as reporter:
+        simulation.reporters.append(reporter)
+        simulation.step(1)
+
+    assert reporter.file_path == tmp_path / "structures.dat"
+    assert reporter.file_path.exists()
+
+
+def test_reporter_validates_constructor_edge_cases(tmp_path, cubic_ice):
+    positions, box_size = cubic_ice
+    simulation = _build_simulation(positions, box_size)
+    output = tmp_path / "invalid.dat"
+
+    with pytest.raises(ValueError, match="cut_off"):
+        ChillPlusReporter(output, 1, cut_off=float("nan"))
+    with pytest.raises(ValueError, match="cluster_cut_off"):
+        ChillPlusReporter(output, 1, cluster_cut_off=float("inf"))
+    with pytest.raises(ValueError, match="integer atom indices"):
+        ChillPlusReporter(output, 1, group=[0.9, 1.1])
+    with pytest.raises(ValueError, match="sequence"):
+        ChillPlusReporter(output, 1, cluster="Ic")
+    with pytest.raises(ValueError, match="strings"):
+        ChillPlusReporter(output, 1, cluster=[1])
+    with pytest.raises(TypeError, match="OpenMM unit"):
+        ChillPlusReporter(output, 1, time_unit="ns")
+    assert not output.exists()
+
+    # An integral float array is still a valid index list.
+    with ChillPlusReporter(output, 1, group=[0.0, 1.0]) as reporter:
+        simulation.reporters.append(reporter)
+        simulation.step(1)
+    assert reporter.ids is not None
+    np.testing.assert_array_equal(reporter.ids, [0, 1])
+
+
+def test_reporter_rejects_out_of_range_group(tmp_path, cubic_ice):
+    positions, box_size = cubic_ice
+    simulation = _build_simulation(positions, box_size)
+    output = tmp_path / "badgroup.dat"
+
+    with ChillPlusReporter(output, interval=1, group=[0, 999]) as reporter:
+        simulation.reporters.append(reporter)
+        with pytest.raises(ValueError, match="outside the topology"):
+            simulation.step(1)
 
 
 def test_reporter_close_is_idempotent(tmp_path):

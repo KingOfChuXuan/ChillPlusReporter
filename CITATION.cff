@@ -6,8 +6,8 @@ authors:
   - family-names: Jiang
     given-names: Xuan
     email: jx736302931@163.com
-version: 1.0.0
-date-released: 2026-10-21
+version: "1.0.0"
+date-released: "2026-10-21"
 license: MIT
 repository-code: "https://github.com/KingOfChuXuan/ChillPlusReporter"
 url: "https://github.com/KingOfChuXuan/ChillPlusReporter"

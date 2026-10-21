@@ -92,6 +92,18 @@ def _validate_cutoff(cut_off: float) -> float:
     return value
 
 
+def _wrap(positions: np.ndarray, box_size: np.ndarray) -> np.ndarray:
+    """Wrap coordinates into ``[0, box_size)``, including round-off at the edge.
+
+    ``np.mod(-1e-16, 50.441)`` can round to exactly ``50.441``.  SciPy's
+    :class:`~scipy.spatial.KDTree` rejects points on the upper box edge, so
+    values equal to (or infinitesimally above) the box length are mapped back
+    to zero.
+    """
+    wrapped = np.mod(positions, box_size)
+    return np.where(wrapped >= box_size, 0.0, wrapped)
+
+
 def cartesian_to_spherical(
     cartesian_coords: Sequence[Sequence[float]] | np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -155,7 +167,7 @@ def find_nearest_neighbors(
     pos, box = _validate_positions(positions, box_size)
     cutoff = _validate_cutoff(cut_off)
 
-    wrapped = np.mod(pos, box)
+    wrapped = _wrap(pos, box)
     tree = KDTree(wrapped, boxsize=box)
     neighbor_lists = [
         np.fromiter((j for j in found if j != i), dtype=np.int64)
@@ -225,6 +237,12 @@ def spherical_harmonics(
         )
     if box.shape != (3,):
         raise ValueError(f"box_size must have shape (3,), got {box.shape}")
+    if not np.all(np.isfinite(box)) or np.any(box <= 0.0):
+        raise ValueError("box_size entries must be finite and positive")
+    if not np.all(np.isfinite(ref)):
+        raise ValueError("ref_points contain NaN or infinite values")
+    if not np.all(np.isfinite(nbr)):
+        raise ValueError("neighbors contain NaN or infinite values")
     if not isinstance(l, (int, np.integer)) or l < 0:
         raise ValueError("l must be a non-negative integer")
 
@@ -270,6 +288,8 @@ def correlation(qlm1: np.ndarray, qlm2: np.ndarray) -> np.ndarray:
         raise ValueError(
             f"qlm1 and qlm2 have incompatible shapes: {first.shape} and {second.shape}"
         )
+    if second.shape[1] == 0:
+        return np.empty((first.shape[0], 0), dtype=np.float64)
     if first.shape[0] == 0:
         return np.empty((0, second.shape[1]), dtype=np.float64)
 
@@ -359,7 +379,7 @@ def classify(
         raise ValueError("l must be a non-negative integer")
     degree = int(l)
 
-    wrapped = np.mod(pos, box)
+    wrapped = _wrap(pos, box)
     n = wrapped.shape[0]
     labels = np.full(n, "", dtype=object)
 
@@ -428,7 +448,7 @@ def largest_cluster(
     if n == 0:
         return labels, {}
 
-    wrapped = np.mod(pos, box)
+    wrapped = _wrap(pos, box)
     tree = KDTree(wrapped, boxsize=box)
     visited = np.zeros(n, dtype=bool)
     clusters: list[np.ndarray] = []

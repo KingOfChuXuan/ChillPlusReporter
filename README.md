@@ -13,9 +13,10 @@ water-water bond criterion of Nguyen and Molinero.  It also finds the largest
 connected ice nucleus and writes its size, composition, and (optionally) its
 oxygen indices during a simulation.
 
-The classifier itself uses only NumPy and SciPy; OpenMM is required for the
-reporter and is installed as a package dependency.  The reporter is an ordinary
-OpenMM reporter and adds little overhead to the MD loop.
+The core classifier (`chillplus.core`) uses only NumPy and SciPy.  The top-level
+package also provides the OpenMM reporter, so OpenMM is installed as a package
+dependency.  The reporter is an ordinary OpenMM reporter and adds little
+overhead to the MD loop.
 
 ## Contents
 
@@ -44,6 +45,8 @@ OpenMM reporter and adds little overhead to the MD loop.
 - OpenMM reporter with configurable report interval, water residue name,
   analysed atom subset, cluster definition, and time unit.
 - Optional output of the oxygen atom indices in the largest nucleus.
+- Explicit validation of non-periodic and triclinic boxes, cutoffs, atom
+  groups, and output labels.
 - Self-contained tests, including a 4096-water regression configuration.
 - No compiled extensions; NumPy, SciPy, and OpenMM are the only runtime
   dependencies.
@@ -129,7 +132,7 @@ ChillPlusReporter(
 | `l` | Spherical-harmonic degree. | `3` |
 | `cluster` | Structure labels that count as the nucleus. | `("Ic", "Ih")` |
 | `cluster_cut_off` | Distance cutoff used to connect atoms into nuclei, in angstrom. | `3.2` |
-| `water_name` | Residue name of water in the topology. | `"HOH"` |
+| `water_name` | Residue name of water.  Oxygen is matched by element, or by atom name `O` when element data are missing. | `"HOH"` |
 | `time_unit` | OpenMM unit used in the time column. | `nanosecond` |
 
 ### Different water residue name
@@ -293,6 +296,11 @@ cost only on report frames, not on every MD step.
   not used by CHILL+.
 - Coordinates and box lengths are in angstrom in the Python API.  The OpenMM
   reporter converts from OpenMM units internally.
+- The reporter requires a system with **periodic boundary conditions**.  It
+  raises `ValueError` for non-periodic systems, because OpenMM would otherwise
+  supply a default 2 nm box and silently produce wrong coordination numbers.
+  Use `chillplus.classify` with an explicit box for non-periodic
+  configurations.
 - Only orthorhombic periodic boxes are supported.  The reporter raises
   `NotImplementedError` for triclinic boxes, and the core API assumes the three
   box lengths are independent.
@@ -300,7 +308,8 @@ cost only on report frames, not on every MD step.
   shortest box length so that the minimum-image convention is unambiguous.
 - The default CHILL+ parameters are `cut_off=3.5` angstrom, `l=3`, and
   `cluster_cut_off=3.2` angstrom.  They are exposed for flexibility but should
-  normally not be changed when comparing with published CHILL+ results.
+  normally not be changed when comparing with published CHILL+ results; the
+  CHILL+ thresholds are calibrated for `l=3`.
 - The reporter writes the temperature from the integrator when available.  For
   integrators without `getTemperature()`, it looks for a context parameter
   whose name contains `Temperature`; otherwise the column is `nan`.

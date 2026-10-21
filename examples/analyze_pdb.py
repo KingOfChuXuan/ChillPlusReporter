@@ -70,8 +70,8 @@ def main() -> int:
     box = np.asarray(box_vectors.value_in_unit(angstrom))
     if not np.allclose(box, np.diag(np.diag(box)), atol=1e-6):
         raise SystemExit(
-            "this example only supports orthorhombic boxes; "
-            "use chillplus.classify directly for other cases"
+            "this example only supports orthorhombic boxes; CHILL+ in this "
+            "package assumes an orthorhombic periodic box"
         )
     box_size = np.diag(box)
 

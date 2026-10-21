@@ -13,6 +13,7 @@ from chillplus import (
     correlation,
     find_nearest_neighbors,
     largest_cluster,
+    spherical_harmonics,
 )
 
 
@@ -64,6 +65,23 @@ def test_positions_outside_box_are_wrapped(cubic_ice):
     np.testing.assert_array_equal(labels, ["Ic"] * 64)
 
 
+def test_wrap_rounding_at_box_boundary():
+    box_size = np.array([50.441, 50.441, 50.441])
+    positions = np.array([[-1e-16, 1.0, 1.0], [1.5, 1.0, 1.0]])
+
+    # np.mod(-1e-16, 50.441) rounds to 50.441, which KDTree rejects.
+    neighbors, neighbor_ids, n_bad = find_nearest_neighbors(
+        positions, box_size, cut_off=3.5
+    )
+    assert n_bad == 2  # both atoms have one neighbour, not four
+    assert set(neighbors) == {1}
+    assert neighbor_ids[1].shape == (2,)
+
+    labels, sizes = largest_cluster(positions, box_size, cut_off=3.2)
+    assert sizes == {1: 2}
+    np.testing.assert_array_equal(labels, [1, 1])
+
+
 def test_neighbor_search_uses_periodic_boundaries(cubic_ice):
     positions, box_size = cubic_ice
     neighbors, neighbor_ids, n_bad = find_nearest_neighbors(
@@ -100,12 +118,13 @@ def test_classify_structure_accepts_threshold_boundaries():
         np.array(
             [
                 [-0.8, -0.35, -1.0, -1.0],  # S=3, E=1
+                [-0.9, -0.9, -0.9, 0.25],  # upper E boundary; S=3, E=1
                 [0.25, 0.5, 0.5, 0.5],  # E=1, S=0
             ],
             dtype=float,
         )
     )
-    np.testing.assert_array_equal(categories, ["Ih", "Other"])
+    np.testing.assert_array_equal(categories, ["Ih", "Ih", "Other"])
 
 
 def test_correlation_is_normalized_and_real():
@@ -126,6 +145,12 @@ def test_correlation_handles_zero_vectors():
     np.testing.assert_array_equal(values, np.zeros((2, 4)))
 
 
+def test_correlation_handles_zero_candidates():
+    values = correlation(np.ones((2, 7)), np.ones((2, 0, 7)))
+    assert values.shape == (2, 0)
+    assert values.dtype == np.float64
+
+
 def test_largest_cluster_orders_by_size():
     first = np.array([[1.0 + 2.7 * i, 1.0, 1.0] for i in range(5)])
     second = np.array([[30.0 + 2.7 * i, 30.0, 30.0] for i in range(3)])
@@ -135,6 +160,23 @@ def test_largest_cluster_orders_by_size():
     labels, sizes = largest_cluster(positions, box_size, cut_off=3.2)
     assert sizes == {1: 5, 2: 3}
     np.testing.assert_array_equal(labels, [1] * 5 + [2] * 3)
+
+
+def test_spherical_harmonics_rejects_invalid_box():
+    with pytest.raises(ValueError, match="finite and positive"):
+        spherical_harmonics(
+            np.zeros((1, 3)),
+            np.zeros((1, 4, 3)),
+            4,
+            np.array([0.0, 10.0, 10.0]),
+        )
+    with pytest.raises(ValueError, match="finite and positive"):
+        spherical_harmonics(
+            np.zeros((1, 3)),
+            np.zeros((1, 4, 3)),
+            4,
+            np.array([10.0, np.nan, 10.0]),
+        )
 
 
 def test_empty_input():
