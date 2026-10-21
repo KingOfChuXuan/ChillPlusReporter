@@ -283,9 +283,18 @@ class ChillPlusReporter:
             return float("nan")
 
     def describeNextReport(self, simulation):
-        """Tell OpenMM that the next report needs wrapped positions."""
+        """Tell OpenMM that the next report needs wrapped positions.
+
+        OpenMM 8.2 and newer accept a dictionary describing the report.  The
+        ``include`` list selects the data passed to :meth:`report`, and
+        ``periodic=True`` requests coordinates wrapped into the periodic box.
+        """
         steps = self.interval - simulation.currentStep % self.interval
-        return steps, True, False, False, False, True
+        return {
+            "steps": steps,
+            "include": ["positions"],
+            "periodic": True,
+        }
 
     def report(self, simulation, state) -> None:
         """Evaluate CHILL+ and write one row of output."""

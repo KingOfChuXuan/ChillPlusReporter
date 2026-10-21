@@ -1,6 +1,7 @@
 """End-to-end tests for the OpenMM reporter."""
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import openmm as mm
@@ -66,6 +67,21 @@ def _build_simulation(
     simulation = app.Simulation(topology, system, integrator)
     simulation.context.setPositions(np.asarray(positions) / 10.0)
     return simulation
+
+
+def test_describe_next_report_returns_dict(tmp_path):
+    reporter = ChillPlusReporter(tmp_path / "next.dat", interval=7)
+    try:
+        report = reporter.describeNextReport(SimpleNamespace(currentStep=3))
+    finally:
+        reporter.close()
+
+    assert isinstance(report, dict)
+    assert report == {
+        "steps": 4,
+        "include": ["positions"],
+        "periodic": True,
+    }
 
 
 def test_reporter_writes_counts_and_indices(tmp_path, cubic_ice):

@@ -45,6 +45,7 @@ overhead to the MD loop.
 - OpenMM reporter with configurable report interval, water residue name,
   analysed atom subset, cluster definition, and time unit.
 - Optional output of the oxygen atom indices in the largest nucleus.
+- Uses OpenMM's dictionary-based `describeNextReport` contract (OpenMM 8.2+).
 - Explicit validation of non-periodic and triclinic boxes, cutoffs, atom
   groups, and output labels.
 - Self-contained tests, including a 4096-water regression configuration.
