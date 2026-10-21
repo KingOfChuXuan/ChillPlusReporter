@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+
+# Environments
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# Packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+wheels/
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Local literature and archives (not part of the repository)
+*.pdf
+*.zip
+
+# Simulation and example output
+*.dcd
+*.log
+traj*
+demo.dat
+demo_index.dat
+examples/*.dat
+structure*.dat
+
+# Notebook scratch files
+.ipynb_checkpoints/
+Untitled.ipynb

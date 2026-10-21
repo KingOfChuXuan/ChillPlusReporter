@@ -1,0 +1,49 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    name: tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+          channels: conda-forge
+          channel-priority: strict
+          activate-environment: chillplus
+      - name: Install dependencies
+        run: conda install -y 'openmm>=8.2' 'scipy>=1.15' numpy pytest
+      - name: Install package
+        run: python -m pip install -e . --no-deps
+      - name: Show versions
+        run: |
+          python -c "import sys, numpy, scipy, openmm, chillplus; print(sys.version); print('numpy', numpy.__version__); print('scipy', scipy.__version__); print('openmm', openmm.__version__); print('chillplus', chillplus.__version__)"
+      - name: Run tests
+        run: python -m pytest -v
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ruff
+        run: python -m pip install ruff
+      - name: Check formatting and imports
+        run: |
+          ruff check .
+          ruff format --check .

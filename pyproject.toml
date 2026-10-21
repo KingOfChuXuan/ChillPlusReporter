@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chillplus"
+version = "1.0.0"
+description = "CHILL+ water/ice/clathrate structure identification and an OpenMM reporter"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [
+    { name = "Xuan Jiang", email = "jx736302931@163.com" },
+]
+keywords = [
+    "molecular-dynamics",
+    "openmm",
+    "water",
+    "ice",
+    "clathrate-hydrate",
+    "chill",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "numpy>=1.23",
+    "scipy>=1.15",
+    "openmm>=8.2",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+dev = [
+    "pytest>=7",
+    "ruff>=0.6",
+    "build>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/KingOfChuXuan/ChillPlusReporter"
+Repository = "https://github.com/KingOfChuXuan/ChillPlusReporter"
+Issues = "https://github.com/KingOfChuXuan/ChillPlusReporter/issues"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["chillplus*"]
+
+[tool.setuptools.package-data]
+chillplus = ["py.typed"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501", "E741"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]

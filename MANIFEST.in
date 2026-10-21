@@ -1,0 +1,7 @@
+include CITATION.cff
+include LICENSE
+include README.md
+include environment.yml
+recursive-include chillplus py.typed
+recursive-include examples *.py *.pdb *.md
+recursive-include tests *.py

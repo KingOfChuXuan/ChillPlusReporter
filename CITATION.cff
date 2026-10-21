@@ -1,0 +1,73 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the CHILL+ paper and this repository."
+title: "ChillPlusReporter: CHILL+ structure analysis for OpenMM"
+type: software
+authors:
+  - family-names: Jiang
+    given-names: Xuan
+    email: jx736302931@163.com
+version: 1.0.0
+date-released: 2026-10-21
+license: MIT
+repository-code: "https://github.com/KingOfChuXuan/ChillPlusReporter"
+url: "https://github.com/KingOfChuXuan/ChillPlusReporter"
+abstract: >-
+  A NumPy/SciPy implementation of the CHILL+ algorithm for identifying cubic
+  ice, hexagonal ice, interfacial ice, clathrate hydrate, interfacial
+  clathrate, and disordered water in molecular simulations, together with an
+  OpenMM reporter that records structure populations and the largest ice
+  nucleus.
+keywords:
+  - molecular dynamics
+  - OpenMM
+  - water
+  - ice
+  - clathrate hydrate
+  - CHILL+
+references:
+  - type: article
+    title: "Identification of Clathrate Hydrates, Hexagonal Ice, Cubic Ice, and Liquid Water in Simulations: the CHILL+ Algorithm"
+    authors:
+      - family-names: Nguyen
+        given-names: Andrew H.
+      - family-names: Molinero
+        given-names: Valeria
+    journal: "The Journal of Physical Chemistry B"
+    volume: 119
+    issue: 29
+    start: 9369
+    end: 9376
+    year: 2015
+    doi: "10.1021/jp510289t"
+  - type: article
+    title: "OpenMM 7: Rapid development of high performance algorithms for molecular dynamics"
+    authors:
+      - family-names: Eastman
+        given-names: Peter
+      - family-names: Swails
+        given-names: Jason
+      - family-names: Chodera
+        given-names: John D.
+      - family-names: McGibbon
+        given-names: Robert T.
+      - family-names: Zhao
+        given-names: Yutong
+      - family-names: Beauchamp
+        given-names: Kyle A.
+      - family-names: Wang
+        given-names: Lingle
+      - family-names: Simmonett
+        given-names: Andrew C.
+      - family-names: Harrigan
+        given-names: Matthew P.
+      - family-names: Stern
+        given-names: Chaya D.
+      - family-names: Fogarty
+        given-names: Ryan P.
+      - family-names: Pande
+        given-names: Vijay S.
+    journal: "PLOS Computational Biology"
+    volume: 13
+    start: e1005659
+    year: 2017
+    doi: "10.1371/journal.pcbi.1005659"
