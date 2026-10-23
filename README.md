@@ -155,6 +155,7 @@ def choose_atom(atom):
         and atom.residue.index < 1000
     )
 
+
 oxygen_indices = [atom.index for atom in topology.atoms() if choose_atom(atom)]
 reporter = ChillPlusReporter("structures.dat", 5000, group=oxygen_indices)
 ```
