@@ -6,13 +6,10 @@ classifying water oxygen atoms as cubic ice (Ic), hexagonal ice (Ih),
 interfacial ice, clathrate hydrate, interfacial clathrate, or disordered
 water ("Other").
 
-Only the positions of the oxygen atoms are required.  The implementation
-follows the reference algorithm and the original ``ChillPlus.py`` script by
-Xuan Jiang.  Periodic boundary conditions are supported for orthorhombic
-boxes.
+Only the positions of the oxygen atoms are required.  Periodic boundary
+conditions are supported for orthorhombic boxes.
 
-The main entry points are :func:`classify` (also available under its
-historical name :data:`ChillPlus`) and :func:`largest_cluster`.
+The main entry points are :func:`classify` and :func:`largest_cluster`.
 """
 
 from __future__ import annotations
@@ -479,20 +476,12 @@ def largest_cluster(
     return labels, sizes
 
 
-#: Historical name kept for scripts written against the original module.
-ChillPlus = classify
-
-#: Historical name kept for scripts written against the original module.
-KDTreeCluster = largest_cluster
-
 __all__ = [
     "CLATHRATE_STRUCTURES",
     "DEFAULT_CLUSTER_CUTOFF",
     "DEFAULT_CUTOFF",
     "ICE_STRUCTURES",
     "STRUCTURE_TYPES",
-    "ChillPlus",
-    "KDTreeCluster",
     "cartesian_to_spherical",
     "classify",
     "classify_structure",

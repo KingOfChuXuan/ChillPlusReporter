@@ -6,7 +6,12 @@ import numpy as np
 
 from chillplus import classify, largest_cluster
 
-DATA = Path(__file__).resolve().parents[1] / "examples" / "data" / "195K.pdb"
+DATA = (
+    Path(__file__).resolve().parents[1]
+    / "examples"
+    / "data"
+    / "ice_water_4096_195K.pdb"
+)
 
 
 def _oxygen_positions():

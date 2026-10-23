@@ -30,7 +30,6 @@ overhead to the MD loop.
 - [Examples](#examples)
 - [Performance](#performance)
 - [Notes and limitations](#notes-and-limitations)
-- [Migrating from the original scripts](#migrating-from-the-original-scripts)
 - [Repository layout](#repository-layout)
 - [References](#references)
 - [Citation](#citation)
@@ -85,6 +84,8 @@ For tests and development tools:
 pip install -e ".[test]"
 python -m pytest
 ```
+
+After installation, `chillplus` can be imported from any working directory.
 
 ## Quick start
 
@@ -145,13 +146,16 @@ reporter = ChillPlusReporter("structures.dat", 5000, water_name="WAT")
 ### Only part of the system
 
 ```python
-oxygen_indices = [
-    atom.index
-    for atom in topology.atoms()
-    if atom.residue.name == "HOH"
-    and atom.element is not None
-    and atom.element.symbol == "O"
-]
+def choose_atom(atom):
+    # Replace this example criterion with your own spatial/topological test.
+    return (
+        atom.residue.name == "HOH"
+        and atom.element is not None
+        and atom.element.symbol == "O"
+        and atom.residue.index < 1000
+    )
+
+oxygen_indices = [atom.index for atom in topology.atoms() if choose_atom(atom)]
 reporter = ChillPlusReporter("structures.dat", 5000, group=oxygen_indices)
 ```
 
@@ -235,9 +239,7 @@ cluster_labels, cluster_sizes = largest_cluster(positions[ice], box_size, cut_of
 print(cluster_sizes[1])  # largest ice nucleus
 ```
 
-Coordinates outside the box are wrapped automatically.  The historical names
-`ChillPlus` and `KDTreeCluster` are kept as aliases for `classify` and
-`largest_cluster`.
+Coordinates outside the box are wrapped automatically.
 
 The lower-level functions are also available:
 
@@ -251,7 +253,7 @@ The lower-level functions are also available:
 
 ## Examples
 
-The bundled `examples/data/195K.pdb` contains 4096 water molecules.  Classify
+The bundled `examples/data/ice_water_4096_195K.pdb` contains 4096 water molecules.  Classify
 it with:
 
 ```bash
@@ -317,24 +319,6 @@ cost only on report frames, not on every MD step.
 - The output file is flushed after every report frame, so it can be inspected
   while a simulation is running.
 
-## Migrating from the original scripts
-
-The original files used top-level module names.  The package now exposes the
-same functionality through `chillplus`:
-
-| Original | New |
-| --- | --- |
-| `from ChillPlus import ChillPlus` | `from chillplus import classify` |
-| `from ChillPlus import KDTreeCluster` | `from chillplus import largest_cluster` |
-| `from ChillPlusReporter import ChillPlusReporter` | `from chillplus import ChillPlusReporter` |
-
-The main classifier and reporter signatures are unchanged.  The index file now
-uses a plain tab-separated `step<TAB>indices` layout instead of the old
-`step:<TAB>indices` layout.
-
-Install the package first (`pip install -e .`) so that the examples and your
-scripts can import `chillplus` from any working directory.
-
 ## Repository layout
 
 ```text
@@ -347,7 +331,7 @@ ChillPlusReporter/
 ├── examples/
 │   ├── analyze_pdb.py
 │   ├── reporter_demo.py
-│   └── data/195K.pdb
+│   └── data/ice_water_4096_195K.pdb
 ├── tests/
 │   ├── test_core.py
 │   ├── test_example_data.py
@@ -390,7 +374,7 @@ repository.  A machine-readable citation is provided in
 
 ```bibtex
 @software{Jiang2026ChillPlusReporter,
-  author  = {Jiang, Xuan},
+  author  = {Xuan Jiang},
   title   = {ChillPlusReporter: CHILL+ structure analysis for OpenMM},
   year    = {2026},
   url     = {https://github.com/KingOfChuXuan/ChillPlusReporter},

@@ -5,8 +5,6 @@ import pytest
 
 from chillplus import (
     STRUCTURE_TYPES,
-    ChillPlus,
-    KDTreeCluster,
     cartesian_to_spherical,
     classify,
     classify_structure,
@@ -17,9 +15,7 @@ from chillplus import (
 )
 
 
-def test_historical_aliases():
-    assert ChillPlus is classify
-    assert KDTreeCluster is largest_cluster
+def test_structure_types():
     assert STRUCTURE_TYPES == (
         "Ic",
         "Ih",

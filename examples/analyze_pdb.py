@@ -21,7 +21,7 @@ from openmm.unit import angstrom
 
 from chillplus import classify, largest_cluster
 
-DEFAULT_PDB = Path(__file__).resolve().parent / "data" / "195K.pdb"
+DEFAULT_PDB = Path(__file__).resolve().parent / "data" / "ice_water_4096_195K.pdb"
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,7 +31,10 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
         type=Path,
         default=DEFAULT_PDB,
-        help="PDB file containing water oxygens (default: bundled 195K.pdb)",
+        help=(
+            "PDB file containing water oxygens "
+            "(default: bundled ice_water_4096_195K.pdb)"
+        ),
     )
     parser.add_argument(
         "--cutoff",

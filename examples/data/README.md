@@ -1,6 +1,6 @@
 # Example data
 
-`195K.pdb` is a 4096-water configuration used as a regression case for the
+`ice_water_4096_195K.pdb` is a 4096-water configuration used as a regression case for the
 CHILL+ classifier.  It is read by `examples/analyze_pdb.py` and by
 `tests/test_example_data.py`.
 
